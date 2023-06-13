@@ -1,0 +1,201 @@
+<!-- one more stuffy in my list of incomplete work -->
+<!-- Aryan here -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        :root {
+            --canvas-color: #e5cdcd;
+            --wall-color: #3b5d3b6e;
+            --wall-thickness: 12px;
+
+        }
+        .canvas {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 510px;
+            height: 270px;
+            background-color: var(--canvas-color);
+        }
+        .wall {
+            position: absolute;
+            background-color: var(--wall-color);
+        }
+        #left, #right {
+            width: var(--wall-thickness);
+            height: 100%;
+        }
+        #top, #bottom {
+            width: 100%;
+            height: var(--wall-thickness);
+        }
+        #left {
+            left: 0;
+        }
+        #right {
+            right:0;
+        }
+        #top {
+            top: 0;
+        }
+        #bottom {
+            bottom: 0;
+        }
+        .rudder {
+            width: 52px;
+            height: 15px;
+            background-color: red;
+            border-radius: 40px;
+            position: absolute;
+            bottom: var(--wall-thickness);
+            left: var(--wall-thickness);
+        }
+    </style>
+</head>
+<body>
+    <div class="canvas">
+        <div class="wall" id="left"></div>
+        <div class="wall" id="right"></div>
+        <div class="wall" id="top"></div>
+        <div class="wall" id="bottom"></div>
+        <div class="ball-box">
+            <div class="ball"></div>
+        </div>
+        <div class="rudder "></div>
+    </div>
+    <script>
+        let [left_wall, right_wall, top_wall, bottom_wall, ball, rudder]=
+        [document.querySelector('#left'),document.querySelector('#right'), document.querySelector('#top'),
+        document.querySelector('#bottom'), document.querySelector('.ball-box'),
+        document.querySelector('.rudder')];
+        const MOVE_UNIT=12;
+        
+        class Point {
+            constructor(x, y) {
+                this.x=x;
+                this.y=y;
+            }
+        }
+        class Line {
+            constructor(p1, p2) {
+                this.point1=p1;
+                this.point2=p2;
+
+                //perpendicular and base
+                [this.p, this.b]=[this.point1.y-this.point2.y, this.point1.x-this.point2.x]
+            }
+            isLineParallel(line){}
+
+            //miscellaneous functions
+            put(point) {
+                //perpedicula and base
+                
+                // l=(y1-y0)(x-x0) - (y-y0)(x1-x0)
+                let value=(this.p)*(point.x-this.point2.x)-(point.y-this.point2.y)*this.b
+                // keep x or y constant positive
+                // i choose x
+                if(this.p<0) {
+                    value = -value
+                }
+                return value;
+            }
+            satisfy(point) {
+                return this.put(point)==0;
+            }
+            fromSlope(m, c) {/* when slope is undefined it is a complete mess */}
+        }
+
+        class Rectangle {
+            constructor(top, left, width, height) {
+                this.topleft=new Point(left, top)
+                this.topright=new Point(left+width, top)
+                this.downleft=new Point(left, top+height)
+                this.downright=new Point(left+width, top+height)
+                
+
+                // equation of lines of sides
+                this.leftline=new Line(this.topleft, this.downleft)
+                this.rightline=new Line(this.topright, this.downright)
+
+                this.topline=new Line(this.topleft, this.topright)
+                this.downline=new Line(this.downleft, this.downright)
+            }
+            
+            areRectCollided(rect) {
+                //var rect2=rect
+                //if any point of rect is inside or on rect1 the two rectangles are colliding
+                //the code here deals with any orientation of the colliding rectangle, at any angle
+                //however we only need collision detection on axial position, but still i want to test my maths skill, this func can also be used by me for other use
+                // this function fails if width/height is greater than other, it cant detect overlapping
+                //also two rect will collide if any two equations of line of sides of the rectangles intersect under bound values
+                //check if l1l2<0 and l2l3<0
+
+                return this.isPointInsideRect(rect.topleft) || this.isPointInsideRect(rect.topright) ||
+                    this.isPointInsideRect(rect.downleft) || this.isPointInsideRect(rect.downright)   
+    
+            }
+
+            //some functions for misc or more features in game
+            isBetweenOrOnLine(line1, line2, point) {
+                //l1l2<0
+                return line1.put(point)*line2.put(point)<=0
+            }
+            isPointInsideRect(point) {
+                return (this.isBetweenOrOnLine(this.leftline, this.rightline, point) && 
+                    this.isBetweenOrOnLine(this.topline, this.downline, point))
+            }
+
+        }
+        
+        
+        function rectFromObj(obj){
+            box=obj.getBoundingClientRect()
+            return (new Rectangle(obj.offsetTop, obj.offsetLeft, box.width, box.height))
+        }
+
+        
+
+        function dopx(num) {
+            return num+'px'
+        }
+        function rempx(str) {
+            return Number.parseFloat( str.slice(0, -2) )
+        }
+
+        function arrowKeyCode(event) {
+            // returns false if not arrow key
+            keycode=event.key.toLowerCase();
+            if(keycode=="arrowleft") return 1;
+            if(keycode=="arrowright") return 2;
+            if(keycode=="arrowup") return 3;
+            if(keycode=="arrowdown") return 4;
+
+            return false
+            
+        }
+        
+        window.document.addEventListener('keyup', (e)=>{
+          rudder.classList.remove('smooth-rudder')
+          rudder.style.left=dopx(rudder.offsetLeft);
+          rudder.classList.add('smooth-rudder')
+        })
+        
+        leftWallRect=rectFromObj(left_wall)
+        rightWallRect=rectFromObj(right_wall)
+
+        let leftmost=rudder.offsetLeft;
+        
+        
+        window.document.addEventListener('keydown', (e)=>{
+            // implement events 
+            // if rudder collides with wall set it position just before or after it          
+         })
+        
+    </script>
+</body>
+</html>
